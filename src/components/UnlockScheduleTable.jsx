@@ -1,65 +1,21 @@
 import React from "react";
+import { addDays } from "date-fns";
 
-export default function UnlockScheduleTable({ unlockEvents, setUnlockEvents }) {
-  // Add new unlock event with default date today and amount 0
-  const addUnlockEvent = () => {
-    setUnlockEvents([...unlockEvents, { date: new Date().toISOString().slice(0, 10), amount: 0 }]);
-  };
-
-  // Remove event at index
-  const removeUnlockEvent = (index) => {
-    const newEvents = unlockEvents.filter((_, i) => i !== index);
-    setUnlockEvents(newEvents);
-  };
-
-  // Update date or amount of event at index
-  const updateUnlockEvent = (index, field, value) => {
-    const newEvents = [...unlockEvents];
-    if (field === "amount") {
-      newEvents[index].amount = Number(value);
-    } else {
-      newEvents[index][field] = value;
-    }
-    setUnlockEvents(newEvents);
-  };
-
+export default function UnlockScheduleTable({ data }) {
   return (
-    <div className="unlock-schedule">
-      <h2>Unlock Schedule</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Unlock Date</th>
-            <th>Amount Unlocking</th>
-            <th>Remove</th>
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Amount</th><th>DLOM Price</th></tr>
+      </thead>
+      <tbody>
+        {data.map((u, i) => (
+          <tr key={i}>
+            <td>{addDays(new Date(), u.days).toDateString()}</td>
+            <td>{u.amount}</td>
+            <td>${(u.putPrice ? u.spotPrice - u.putPrice : u.spotPrice).toFixed(2)}</td>
           </tr>
-        </thead>
-        <tbody>
-          {unlockEvents.map((event, i) => (
-            <tr key={i}>
-              <td>
-                <input
-                  type="date"
-                  value={event.date}
-                  onChange={(e) => updateUnlockEvent(i, "date", e.target.value)}
-                />
-              </td>
-              <td>
-                <input
-                  type="number"
-                  value={event.amount}
-                  min={0}
-                  onChange={(e) => updateUnlockEvent(i, "amount", e.target.value)}
-                />
-              </td>
-              <td>
-                <button onClick={() => removeUnlockEvent(i)}>X</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <button onClick={addUnlockEvent}>Add Unlock Event</button>
-    </div>
+        ))}
+      </tbody>
+    </table>
   );
 }
