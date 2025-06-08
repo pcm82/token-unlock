@@ -1,8 +1,8 @@
-// components/TokenForm/TokenForm.jsx
 import React, { useState, useEffect } from 'react';
 import ScheduleForm from './TokenForm/ScheduleForm';
 import { generateUnlockEvents, summarizeUnlockEvents } from './TokenForm/helpers';
 import { calculateDLOM } from '../utils/blackScholes';
+// import { fetchDeribitIV } from '../utils/deribit'; // optional if using Deribit IV
 
 const defaultSchedule = {
   token: null,
@@ -34,31 +34,86 @@ export default function TokenForm({ onCalculate }) {
       .catch(() => setError('Failed to load token data'));
   }, []);
 
-  const updateSchedule = (index, field, value) => {
-    const newSchedules = [...schedules];
-    newSchedules[index][field] = value;
-    setSchedules(newSchedules);
+  const calculateHistoricalVolatility = (prices) => {
+    if (!prices || prices.length < 2) return null;
+    const logReturns = [];
+    for (let i = 1; i < prices.length; i++) {
+      const p0 = prices[i - 1][1];
+      const p1 = prices[i][1];
+      logReturns.push(Math.log(p1 / p0));
+    }
+    const mean = logReturns.reduce((a, b) => a + b, 0) / logReturns.length;
+    const variance = logReturns.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (logReturns.length - 1);
+    const stdDev = Math.sqrt(variance);
+    const annualizedVol = stdDev * Math.sqrt(365);
+    return (annualizedVol * 100).toFixed(2);
   };
 
   const handleTokenChange = (index, tokenId) => {
     const token = tokens.find(t => t.id === tokenId) || null;
-    const newSchedules = [...schedules];
-    newSchedules[index].token = token;
 
-    if (!newSchedules[index].spotPrice && token)
-      newSchedules[index].spotPrice = token.current_price.toFixed(2);
+    setSchedules((prev) => {
+      const newSchedules = [...prev];
+      newSchedules[index] = {
+        ...newSchedules[index],
+        token,
+        spotPrice: token ? token.current_price.toFixed(2) : '',
+        volatility: '',
+      };
+      return newSchedules;
+    });
 
-    if (!newSchedules[index].volatility && token)
-      newSchedules[index].volatility = (token.symbol === 'eth' ? 70 : token.symbol === 'btc' ? 50 : 60).toFixed(2);
+    if (!token) return;
 
-    setSchedules(newSchedules);
+    (async () => {
+      try {
+        const res = await fetch(`https://api.coingecko.com/api/v3/coins/${tokenId}/market_chart?vs_currency=usd&days=30`);
+        const data = await res.json();
+        let vol = calculateHistoricalVolatility(data.prices);
+
+        // Optional: override with Deribit IV
+        // if (['btc', 'eth'].includes(token.symbol.toLowerCase())) {
+        //   vol = await fetchDeribitIV(token.symbol);
+        // }
+
+        setSchedules((prev) => {
+          const newSchedules = [...prev];
+          if (!newSchedules[index]) return prev;
+          newSchedules[index] = {
+            ...newSchedules[index],
+            volatility: vol || (token.symbol === 'eth' ? '70.00' : token.symbol === 'btc' ? '50.00' : '60.00'),
+          };
+          return newSchedules;
+        });
+      } catch (e) {
+        setSchedules((prev) => {
+          const newSchedules = [...prev];
+          if (!newSchedules[index]) return prev;
+          newSchedules[index] = {
+            ...newSchedules[index],
+            volatility: token.symbol === 'eth' ? '70.00' : token.symbol === 'btc' ? '50.00' : '60.00',
+          };
+          return newSchedules;
+        });
+      }
+    })();
   };
 
-  const addSchedule = () => setSchedules([...schedules, { ...defaultSchedule }]);
+  const updateSchedule = (index, field, value) => {
+    setSchedules((prev) => {
+      const newSchedules = [...prev];
+      newSchedules[index] = { ...newSchedules[index], [field]: value };
+      return newSchedules;
+    });
+  };
+
+  const addSchedule = () => setSchedules(prev => [...prev, { ...defaultSchedule }]);
 
   const removeSchedule = (index) => {
-    const newSchedules = schedules.filter((_, i) => i !== index);
-    setSchedules(newSchedules.length ? newSchedules : [{ ...defaultSchedule }]);
+    setSchedules((prev) => {
+      const newSchedules = prev.filter((_, i) => i !== index);
+      return newSchedules.length ? newSchedules : [{ ...defaultSchedule }];
+    });
   };
 
   const handleSubmit = (e) => {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import TokenForm from '../src/components/TokenForm'
+import TokenForm from '../src/components/TokenForm';
 import {
   LineChart,
   Line,
@@ -38,9 +38,9 @@ function ResultsDisplay({ results }) {
     const entry = dateMap.get(dateStr);
 
     if (d <= now) {
-      entry.unlocked += amount * spot;
+      entry.unlocked += Number(amount) * Number(spot || 0);
     } else {
-      entry.locked += amount * discountedPrice;
+      entry.locked += Number(amount) * Number(discountedPrice || 0);
     }
     entry.totalValue = entry.unlocked + entry.locked;
   });
@@ -50,10 +50,10 @@ function ResultsDisplay({ results }) {
   return (
     <>
       <h2>Results Summary</h2>
-      <p>Spot Price: ${spot.toFixed(2)}</p>
-      <p>Total Unlocked Tokens: {totalUnlocked.toFixed(2)}</p>
-      <p>Total Locked Tokens: {totalLocked.toFixed(2)}</p>
-      <p>Total Portfolio Value: ${totalValue.toFixed(2)}</p>
+      <p>Spot Price: ${Number(spot || 0).toFixed(2)}</p>
+      <p>Total Unlocked Tokens: {Number(totalUnlocked || 0).toFixed(2)}</p>
+      <p>Total Locked Tokens: {Number(totalLocked || 0).toFixed(2)}</p>
+      <p>Total Portfolio Value: ${Number(totalValue || 0).toFixed(2)}</p>
 
       <h3>Unlock Events</h3>
       <table border="1" cellPadding={5} cellSpacing={0} style={{ width: '100%', marginBottom: 20 }}>
@@ -71,11 +71,11 @@ function ResultsDisplay({ results }) {
           {unlockEvents.map(({ date, amount, discountedPrice, totalValue, discountPercent, token }, i) => (
             <tr key={i}>
               <td>{date}</td>
-              <td>{amount.toFixed(2)}</td>
-              <td>${discountedPrice.toFixed(2)}</td>
-              <td>${totalValue.toFixed(2)}</td>
-              <td>{discountPercent.toFixed(2)}%</td>
-              <td>{token?.symbol.toUpperCase() || 'N/A'}</td>
+              <td>{Number(amount || 0).toFixed(2)}</td>
+              <td>${Number(discountedPrice || 0).toFixed(2)}</td>
+              <td>${Number(totalValue || 0).toFixed(2)}</td>
+              <td>{Number(discountPercent || 0).toFixed(2)}%</td>
+              <td>{token?.symbol?.toUpperCase() || 'N/A'}</td>
             </tr>
           ))}
         </tbody>

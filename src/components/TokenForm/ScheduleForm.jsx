@@ -1,8 +1,29 @@
-// components/TokenForm/ScheduleForm.jsx
 import React from 'react';
+import cronstrue from 'cronstrue';
 
 export default function ScheduleForm({ index, schedule, tokens, onChange, onTokenChange, onRemove }) {
-  const handleFieldChange = (field, value) => onChange(index, field, value);
+  const handleFieldChange = (field, value) => {
+    onChange(index, field, value);
+  };
+
+  const handleTokenSelect = (e) => {
+    const tokenId = e.target.value;
+    const selectedToken = tokens.find(t => t.id === tokenId);
+    onTokenChange(index, tokenId);
+
+    if (!selectedToken) {
+      onChange(index, 'spotPrice', '');
+      onChange(index, 'volatility', '');
+    }
+  };
+
+  const updateCron = (field, value) => {
+    const newSchedule = { ...schedule, [field]: value };
+    const cronExpr = `${newSchedule.cronMin} ${newSchedule.cronHour} ${newSchedule.cronDom} ${newSchedule.cronMon} ${newSchedule.cronDow}`;
+    newSchedule.frequencyValue = cronExpr;
+    onChange(index, field, value);
+    onChange(index, 'frequencyValue', cronExpr);
+  };
 
   return (
     <fieldset style={{ marginBottom: 20, padding: 15, border: '1px solid #ccc', borderRadius: 8 }}>
@@ -10,10 +31,16 @@ export default function ScheduleForm({ index, schedule, tokens, onChange, onToke
 
       <label>
         Token:
-        <select value={schedule.token?.id || ''} onChange={e => onTokenChange(index, e.target.value)} style={{ marginLeft: 10, width: 180 }}>
+        <select
+          value={schedule.token?.id || ''}
+          onChange={handleTokenSelect}
+          style={{ marginLeft: 10, width: 180 }}
+        >
           <option value="">-- Select token --</option>
           {tokens.map((t) => (
-            <option key={t.id} value={t.id}>{t.name} ({t.symbol.toUpperCase()})</option>
+            <option key={t.id} value={t.id}>
+              {t.name} ({t.symbol.toUpperCase()})
+            </option>
           ))}
         </select>
       </label>
@@ -22,28 +49,54 @@ export default function ScheduleForm({ index, schedule, tokens, onChange, onToke
 
       <label>
         Spot Price (USD):
-        <input type="number" value={schedule.spotPrice} onChange={e => handleFieldChange('spotPrice', e.target.value)} required style={{ marginLeft: 10, width: 120 }} />
+        <input
+          type="number"
+          value={schedule.spotPrice || ''}
+          onChange={e => handleFieldChange('spotPrice', e.target.value)}
+          required
+          style={{ marginLeft: 10, width: 120 }}
+          placeholder="Enter or auto-filled"
+        />
       </label>
 
       <br />
 
       <label>
         Implied Volatility (%):
-        <input type="number" value={schedule.volatility} onChange={e => handleFieldChange('volatility', e.target.value)} required style={{ marginLeft: 10, width: 120 }} />
+        <input
+          type="number"
+          value={schedule.volatility || ''}
+          onChange={e => handleFieldChange('volatility', e.target.value)}
+          required
+          style={{ marginLeft: 10, width: 120 }}
+          placeholder="Enter or auto-filled"
+        />
       </label>
 
       <br />
 
       <label>
         Strike Price (USD):
-        <input type="number" value={schedule.strikePrice} onChange={e => handleFieldChange('strikePrice', e.target.value)} required style={{ marginLeft: 10, width: 120 }} />
+        <input
+          type="number"
+          value={schedule.strikePrice}
+          onChange={e => handleFieldChange('strikePrice', e.target.value)}
+          required
+          style={{ marginLeft: 10, width: 120 }}
+        />
       </label>
 
       <br />
 
       <label>
         Amount:
-        <input type="number" value={schedule.amount} onChange={e => handleFieldChange('amount', e.target.value)} required style={{ marginLeft: 10, width: 120 }} />
+        <input
+          type="number"
+          value={schedule.amount}
+          onChange={e => handleFieldChange('amount', e.target.value)}
+          required
+          style={{ marginLeft: 10, width: 120 }}
+        />
       </label>
 
       <br />
@@ -60,7 +113,13 @@ export default function ScheduleForm({ index, schedule, tokens, onChange, onToke
 
       <label>
         Start Date:
-        <input type="date" value={schedule.startDate} onChange={e => handleFieldChange('startDate', e.target.value)} required style={{ marginLeft: 10, width: 160 }} />
+        <input
+          type="date"
+          value={schedule.startDate}
+          onChange={e => handleFieldChange('startDate', e.target.value)}
+          required
+          style={{ marginLeft: 10, width: 160 }}
+        />
       </label>
 
       <br />
@@ -69,18 +128,28 @@ export default function ScheduleForm({ index, schedule, tokens, onChange, onToke
         <>
           <label>
             End Date:
-            <input type="date" value={schedule.endDate} onChange={e => handleFieldChange('endDate', e.target.value)} required style={{ marginLeft: 10, width: 160 }} />
+            <input
+              type="date"
+              value={schedule.endDate}
+              onChange={e => handleFieldChange('endDate', e.target.value)}
+              required
+              style={{ marginLeft: 10, width: 160 }}
+            />
           </label>
 
           <br />
 
           <label>
             Frequency Type:
-            <select value={schedule.frequencyType} onChange={e => handleFieldChange('frequencyType', e.target.value)} style={{ marginLeft: 10, width: 140 }}>
+            <select
+              value={schedule.frequencyType}
+              onChange={e => handleFieldChange('frequencyType', e.target.value)}
+              style={{ marginLeft: 10, width: 140 }}
+            >
               <option value="daily">Daily</option>
               <option value="weekly">Weekly</option>
               <option value="monthly">Monthly</option>
-              {/* Removed customCron option */}
+              <option value="customCron">Custom Cron</option>
             </select>
           </label>
 
@@ -89,16 +158,51 @@ export default function ScheduleForm({ index, schedule, tokens, onChange, onToke
           {schedule.frequencyType === 'daily' && (
             <label>
               Days Between Unlocks:
-              <input type="number" min="1" value={schedule.frequencyValue} onChange={(e) => handleFieldChange('frequencyValue', e.target.value)} style={{ marginLeft: 10, width: 60 }} />
+              <input
+                type="number"
+                min="1"
+                value={schedule.frequencyValue}
+                onChange={e => handleFieldChange('frequencyValue', e.target.value)}
+                style={{ marginLeft: 10, width: 60 }}
+              />
             </label>
           )}
 
-          {/* Removed all cron inputs and description */}
+          {schedule.frequencyType === 'customCron' && (
+            <>
+              <label>
+                Minute:
+                <input value={schedule.cronMin} onChange={e => updateCron('cronMin', e.target.value)} />
+              </label>
+              <label>
+                Hour:
+                <input value={schedule.cronHour} onChange={e => updateCron('cronHour', e.target.value)} />
+              </label>
+              <label>
+                Day:
+                <input value={schedule.cronDom} onChange={e => updateCron('cronDom', e.target.value)} />
+              </label>
+              <label>
+                Month:
+                <input value={schedule.cronMon} onChange={e => updateCron('cronMon', e.target.value)} />
+              </label>
+              <label>
+                Weekday:
+                <input value={schedule.cronDow} onChange={e => updateCron('cronDow', e.target.value)} />
+              </label>
+              <br />
+              <p style={{ color: '#007' }}>
+                Cron Description: {cronstrue.toString(schedule.frequencyValue || '* * * * *')}
+              </p>
+            </>
+          )}
         </>
       )}
 
       <br />
-      <button type="button" onClick={() => onRemove(index)} style={{ color: 'red' }}>Remove Schedule</button>
+      <button type="button" onClick={() => onRemove(index)} style={{ color: 'red' }}>
+        Remove Schedule
+      </button>
     </fieldset>
   );
 }
