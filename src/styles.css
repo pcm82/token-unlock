@@ -1,5 +1,9 @@
-body {
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
   font-family: sans-serif;
-  padding: 1rem;
-  background: #f0f2f5;
+}
+input, select {
+  margin: 0.5rem;
 }

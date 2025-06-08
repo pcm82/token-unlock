@@ -1,22 +1,22 @@
 import React from "react";
 import { Line } from "react-chartjs-2";
-import { Chart as ChartJS, CategoryScale, LinearScale, LineElement, PointElement } from "chart.js";
-ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement);
+import { Chart, LineElement, PointElement, LinearScale, CategoryScale } from "chart.js";
 
-export default function Charts({ data }) {
-  const labels = data.map((u) => `${u.days}d`);
-  const values = data.map((u) => u.amount);
+Chart.register(LineElement, PointElement, LinearScale, CategoryScale);
+
+const Charts = ({ schedule, discountedValues }) => {
+  const dates = schedule.map(s => s.date);
+  const unlocks = schedule.map(s => s.amount);
+  const discounted = discountedValues.map(s => s.discountedValue);
+
   return (
     <div>
-      <Line data={{
-        labels,
-        datasets: [{
-          label: "Unlocks",
-          data: values,
-          borderColor: "blue",
-          backgroundColor: "lightblue"
-        }]
-      }} />
+      <h3>Unlock Chart</h3>
+      <Line data={{ labels: dates, datasets: [{ label: "Unlocked", data: unlocks }] }} />
+      <h3>Discounted Value</h3>
+      <Line data={{ labels: dates, datasets: [{ label: "Value", data: discounted }] }} />
     </div>
   );
-}
+};
+
+export default Charts;
