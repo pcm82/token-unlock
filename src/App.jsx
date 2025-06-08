@@ -1,168 +1,171 @@
-import React, { useState, useEffect } from 'react';
-import { calculateDLOM } from './utils/blackScholes';
+import React, { useState, useEffect } from "react";
+import { calculateDLOM } from "./utils/blackScholes";
+import { Line, Bar } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
 
-// Fetch top 20 tokens live from CoinGecko
-async function fetchTopTokens() {
-  const url = 'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=20&page=1&sparkline=false';
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Failed to fetch tokens');
-  const data = await res.json();
-  return data.map((coin) => ({
-    id: coin.id,
-    name: coin.name,
-    symbol: coin.symbol.toUpperCase(),
-    price: coin.current_price,
-  }));
-}
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
+
+const TOKEN_LIST_API =
+  "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=20&page=1";
 
 export default function App() {
+  const [schedules, setSchedules] = useState([
+    {
+      token: "",
+      spotPrice: "",
+      volatility: "",
+      strikePrice: "",
+      type: "cliff",
+      amount: "",
+      startDate: "",
+      endDate: "",
+    },
+  ]);
   const [tokens, setTokens] = useState([]);
-  const [selectedTokenId, setSelectedTokenId] = useState('');
-  const [spotPrice, setSpotPrice] = useState('');
-  const [volatility, setVolatility] = useState('');
-  const [strikePrice, setStrikePrice] = useState('');
-  const [schedules, setSchedules] = useState([]);
-  const [results, setResults] = useState(null);
-  const [error, setError] = useState('');
+  const [results, setResults] = useState([]);
+  const [error, setError] = useState("");
 
-  // Fetch tokens on mount
+  // Fetch top 20 tokens from CoinGecko on mount
   useEffect(() => {
-    fetchTopTokens()
-      .then((list) => {
-        setTokens(list);
-        if (list.length > 0) {
-          setSelectedTokenId(list[0].id);
-          setSpotPrice(list[0].price.toString());
-        }
-      })
-      .catch((e) => setError(e.message));
+    async function fetchTokens() {
+      try {
+        const res = await fetch(TOKEN_LIST_API);
+        const data = await res.json();
+        setTokens(data);
+      } catch (e) {
+        console.error("Failed to fetch tokens:", e);
+      }
+    }
+    fetchTokens();
   }, []);
 
-  // Update spotPrice when selected token changes
-  useEffect(() => {
-    const token = tokens.find((t) => t.id === selectedTokenId);
-    if (token) {
-      setSpotPrice(token.price.toString());
-      setSchedules([]); // reset schedules when switching tokens
-      setResults(null);
-    }
-  }, [selectedTokenId, tokens]);
-
-  // Add schedule handlers
-  const addSchedule = () => {
-    setSchedules([
-      ...schedules,
-      {
-        tokenId: selectedTokenId,
-        type: 'cliff',
-        amount: '',
-        startDate: '',
-        endDate: '',
-      },
-    ]);
-  };
-
-  const removeSchedule = (index) => {
-    const newSchedules = schedules.filter((_, i) => i !== index);
-    setSchedules(newSchedules);
-  };
-
-  const handleScheduleChange = (index, field, value) => {
-    const newSchedules = [...schedules];
-    newSchedules[index][field] = value;
-    setSchedules(newSchedules);
-  };
-
-  // Calculation function (similar to your TokenForm's handleSubmit)
+  // Calculate all schedules
   const handleCalculate = () => {
-    setError('');
+    setError("");
     try {
-      if (!spotPrice || !volatility || !strikePrice) {
-        throw new Error('Please enter spot price, volatility, and strike price.');
-      }
-      const spot = parseFloat(spotPrice);
-      const vol = parseFloat(volatility) / 100;
-      const strike = parseFloat(strikePrice);
+      let allUnlockEvents = [];
 
-      if (isNaN(spot) || spot <= 0) throw new Error('Spot price must be positive.');
-      if (isNaN(vol) || vol <= 0) throw new Error('Volatility must be positive.');
-      if (isNaN(strike) || strike <= 0) throw new Error('Strike price must be positive.');
+      schedules.forEach((schedule, idx) => {
+        const {
+          token,
+          spotPrice,
+          volatility,
+          strikePrice,
+          type,
+          amount,
+          startDate,
+          endDate,
+        } = schedule;
 
-      if (schedules.length === 0) throw new Error('Please add at least one schedule.');
-
-      // Parse unlock events for all schedules
-      let unlockEvents = [];
-      for (const sched of schedules) {
-        const token = tokens.find((t) => t.id === sched.tokenId);
-        if (!token) throw new Error('Invalid token in schedule.');
-
-        if (!sched.amount || !sched.startDate || (sched.type === 'linear' && !sched.endDate)) {
-          throw new Error('Please fill all schedule fields.');
+        if (
+          !token ||
+          !spotPrice ||
+          !volatility ||
+          !strikePrice ||
+          !amount ||
+          !startDate ||
+          (type === "linear" && !endDate)
+        ) {
+          throw new Error(`Fill all fields in schedule #${idx + 1}`);
         }
 
-        const amount = parseFloat(sched.amount);
-        if (isNaN(amount) || amount <= 0) throw new Error('Amount must be positive.');
+        const S = parseFloat(spotPrice);
+        const sigma = parseFloat(volatility) / 100; // percent to decimal
+        const K = parseFloat(strikePrice);
+        const amt = parseFloat(amount);
 
-        const start = new Date(sched.startDate);
-        if (isNaN(start)) throw new Error('Invalid start date.');
+        if (S <= 0 || sigma <= 0 || K <= 0 || amt <= 0)
+          throw new Error(`Invalid numeric values in schedule #${idx + 1}`);
 
-        if (sched.type === 'cliff') {
-          unlockEvents.push({
-            tokenId: sched.tokenId,
-            tokenSymbol: token.symbol,
+        // Generate unlock events per schedule
+        const start = new Date(startDate);
+        if (isNaN(start)) throw new Error(`Invalid start date in schedule #${idx + 1}`);
+
+        if (type === "cliff") {
+          allUnlockEvents.push({
+            token,
             date: start,
-            amount,
-            spotPrice: token.price,
+            amount: amt,
+            spotPrice: S,
+            volatility: sigma,
+            strikePrice: K,
           });
-        } else if (sched.type === 'linear') {
-          const end = new Date(sched.endDate);
-          if (isNaN(end) || end <= start) throw new Error('Invalid end date for linear schedule.');
+        } else if (type === "linear") {
+          const end = new Date(endDate);
+          if (isNaN(end) || end <= start)
+            throw new Error(`Invalid end date in schedule #${idx + 1}`);
 
-          const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-          const dailyAmount = amount / diffDays;
+          const diffTime = end - start;
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          const dailyUnlock = amt / diffDays;
 
           for (let i = 0; i <= diffDays; i++) {
             const unlockDate = new Date(start);
             unlockDate.setDate(unlockDate.getDate() + i);
-            unlockEvents.push({
-              tokenId: sched.tokenId,
-              tokenSymbol: token.symbol,
+
+            allUnlockEvents.push({
+              token,
               date: unlockDate,
-              amount: dailyAmount,
-              spotPrice: token.price,
+              amount: dailyUnlock,
+              spotPrice: S,
+              volatility: sigma,
+              strikePrice: K,
             });
           }
         }
-      }
+      });
 
-      // Sort and combine unlock events by date and token
-      unlockEvents.sort((a, b) => a.date - b.date);
+      // Sort by date ascending
+      allUnlockEvents.sort((a, b) => a.date - b.date);
 
+      // Combine events with same token & date
       const combined = [];
-      for (const event of unlockEvents) {
-        const last = combined.length ? combined[combined.length - 1] : null;
+      for (const ev of allUnlockEvents) {
+        const last =
+          combined.length > 0
+            ? combined[combined.length - 1]
+            : null;
         if (
           last &&
-          last.date.getTime() === event.date.getTime() &&
-          last.tokenId === event.tokenId
+          last.date.getTime() === ev.date.getTime() &&
+          last.token === ev.token
         ) {
-          last.amount += event.amount;
+          last.amount += ev.amount;
         } else {
-          combined.push({ ...event });
+          combined.push({ ...ev });
         }
       }
 
-      // Calculate Black-Scholes DLOM for each unlock event
+      // Calculate option values per unlock event
       const now = new Date();
-      const detailedResults = combined.map(({ date, amount, spotPrice, tokenSymbol }) => {
+      const resultsWithValues = combined.map(({ token, date, amount, spotPrice, volatility, strikePrice }) => {
         let timeToExpiry = (date - now) / (1000 * 60 * 60 * 24 * 365);
         if (timeToExpiry < 0) timeToExpiry = 0;
 
         const putPremium = calculateDLOM({
           spot: spotPrice,
-          strike: strike,
+          strike: strikePrice,
           timeToExpiry,
-          volatility: vol,
+          volatility,
         });
 
         const discountedPrice = spotPrice - putPremium;
@@ -170,8 +173,8 @@ export default function App() {
         const discountPercent = (putPremium / spotPrice) * 100;
 
         return {
+          token,
           date: date.toISOString().slice(0, 10),
-          tokenSymbol,
           amount,
           discountedPrice,
           totalValue,
@@ -179,213 +182,247 @@ export default function App() {
         };
       });
 
-      // Aggregate totals by token
-      const aggregates = {};
-      for (const r of detailedResults) {
-        if (!aggregates[r.tokenSymbol]) {
-          aggregates[r.tokenSymbol] = {
-            totalUnlocked: 0,
-            totalLocked: 0,
-            totalValue: 0,
-            spotPrice: null,
-          };
-        }
-        const unlockDate = new Date(r.date);
-        if (unlockDate <= now) {
-          aggregates[r.tokenSymbol].totalUnlocked += r.amount;
-          aggregates[r.tokenSymbol].totalValue += r.amount * spotPrice; // unlocked at spot price
-        } else {
-          aggregates[r.tokenSymbol].totalLocked += r.amount;
-          aggregates[r.tokenSymbol].totalValue += r.totalValue;
-        }
-        aggregates[r.tokenSymbol].spotPrice = spotPrice;
-      }
-
-      setResults({ detailedResults, aggregates });
-    } catch (e) {
-      setError(e.message);
+      setResults(resultsWithValues);
+    } catch (err) {
+      setError(err.message);
+      setResults([]);
     }
   };
 
+  // Handlers for schedule changes
+  const updateScheduleField = (idx, field, value) => {
+    const newSchedules = [...schedules];
+    newSchedules[idx][field] = value;
+    setSchedules(newSchedules);
+  };
+
+  const addSchedule = () => {
+    setSchedules([
+      ...schedules,
+      {
+        token: "",
+        spotPrice: "",
+        volatility: "",
+        strikePrice: "",
+        type: "cliff",
+        amount: "",
+        startDate: "",
+        endDate: "",
+      },
+    ]);
+  };
+
+  const removeSchedule = (idx) => {
+    const newSchedules = schedules.filter((_, i) => i !== idx);
+    setSchedules(newSchedules.length ? newSchedules : [
+      {
+        token: "",
+        spotPrice: "",
+        volatility: "",
+        strikePrice: "",
+        type: "cliff",
+        amount: "",
+        startDate: "",
+        endDate: "",
+      },
+    ]);
+  };
+
+  // Prepare chart data for unlocked tokens and portfolio value over time
+  const chartLabels = [...new Set(results.map((r) => r.date))].sort();
+  const tokensSet = [...new Set(results.map((r) => r.token))];
+
+  // Aggregate token amounts per date for unlocked tokens chart
+  const unlockedTokensData = chartLabels.map((date) => {
+    return results
+      .filter((r) => r.date === date)
+      .reduce((sum, r) => sum + r.amount, 0);
+  });
+
+  // Aggregate total portfolio value per date
+  const portfolioValueData = chartLabels.map((date) => {
+    return results
+      .filter((r) => r.date === date)
+      .reduce((sum, r) => sum + r.totalValue, 0);
+  });
+
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>Token Unlock Calculator (Live Tokens)</h1>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+    <div style={{ maxWidth: 900, margin: "auto", padding: 20 }}>
+      <h1>Token Unlock Schedule Calculator</h1>
 
-      <div>
-        <label>Select Token: </label>
-        <select
-          value={selectedTokenId}
-          onChange={(e) => setSelectedTokenId(e.target.value)}
+      {schedules.map((schedule, idx) => (
+        <div
+          key={idx}
+          style={{
+            border: "1px solid #ccc",
+            padding: 10,
+            marginBottom: 20,
+            borderRadius: 6,
+          }}
         >
-          {tokens.map((token) => (
-            <option key={token.id} value={token.id}>
-              {token.name} ({token.symbol}) - ${token.price}
-            </option>
-          ))}
-        </select>
-      </div>
+          <button onClick={() => removeSchedule(idx)}>Remove Schedule</button>
 
-      <div>
-        <label>Spot Price ($): </label>
-        <input
-          type="number"
-          step="0.01"
-          value={spotPrice}
-          onChange={(e) => setSpotPrice(e.target.value)}
-        />
-      </div>
+          <div>
+            <label>Token: </label>
+            <select
+              value={schedule.token}
+              onChange={(e) => updateScheduleField(idx, "token", e.target.value)}
+            >
+              <option value="">Select token</option>
+              {tokens.map((t) => (
+                <option key={t.id} value={t.symbol}>
+                  {t.name} ({t.symbol.toUpperCase()})
+                </option>
+              ))}
+            </select>
+          </div>
 
-      <div>
-        <label>Volatility (% annualized): </label>
-        <input
-          type="number"
-          step="0.01"
-          value={volatility}
-          onChange={(e) => setVolatility(e.target.value)}
-          placeholder="E.g., 60"
-        />
-      </div>
+          <div>
+            <label>Spot Price ($): </label>
+            <input
+              type="number"
+              step="0.01"
+              value={schedule.spotPrice}
+              onChange={(e) => updateScheduleField(idx, "spotPrice", e.target.value)}
+              placeholder="e.g. 43.25"
+            />
+          </div>
 
-      <div>
-        <label>Strike Price ($): </label>
-        <input
-          type="number"
-          step="0.01"
-          value={strikePrice}
-          onChange={(e) => setStrikePrice(e.target.value)}
-        />
-      </div>
+          <div>
+            <label>Implied Volatility (% annualized): </label>
+            <input
+              type="number"
+              step="0.01"
+              value={schedule.volatility}
+              onChange={(e) => updateScheduleField(idx, "volatility", e.target.value)}
+              placeholder="e.g. 60"
+            />
+          </div>
 
-      <h2>Unlock Schedules (for multiple tokens)</h2>
-      {schedules.length === 0 && <p>No unlock schedules added yet.</p>}
-      {schedules.map((schedule, idx) => {
-        const token = tokens.find((t) => t.id === schedule.tokenId) || {};
-        return (
-          <div key={idx} style={{ border: '1px solid #ccc', margin: '10px 0', padding: '10px' }}>
-            <button type="button" onClick={() => removeSchedule(idx)}>
-              Remove Schedule
-            </button>
+          <div>
+            <label>Strike Price ($): </label>
+            <input
+              type="number"
+              step="0.01"
+              value={schedule.strikePrice}
+              onChange={(e) => updateScheduleField(idx, "strikePrice", e.target.value)}
+              placeholder="e.g. 43.25"
+            />
+          </div>
 
+          <div>
+            <label>Type: </label>
+            <select
+              value={schedule.type}
+              onChange={(e) => updateScheduleField(idx, "type", e.target.value)}
+            >
+              <option value="cliff">Cliff</option>
+              <option value="linear">Linear</option>
+            </select>
+          </div>
+
+          <div>
+            <label>Amount: </label>
+            <input
+              type="number"
+              step="0.01"
+              value={schedule.amount}
+              onChange={(e) => updateScheduleField(idx, "amount", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label>Start Date: </label>
+            <input
+              type="date"
+              value={schedule.startDate}
+              onChange={(e) => updateScheduleField(idx, "startDate", e.target.value)}
+            />
+          </div>
+
+          {schedule.type === "linear" && (
             <div>
-              <label>Token: </label>
-              <select
-                value={schedule.tokenId}
-                onChange={(e) => handleScheduleChange(idx, 'tokenId', e.target.value)}
-              >
-                {tokens.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} ({t.symbol})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label>Type: </label>
-              <select
-                value={schedule.type}
-                onChange={(e) => handleScheduleChange(idx, 'type', e.target.value)}
-              >
-                <option value="cliff">Cliff</option>
-                <option value="linear">Linear</option>
-              </select>
-            </div>
-
-            <div>
-              <label>Amount: </label>
-              <input
-                type="number"
-                step="0.01"
-                value={schedule.amount}
-                onChange={(e) => handleScheduleChange(idx, 'amount', e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label>Start Date: </label>
+              <label>End Date: </label>
               <input
                 type="date"
-                value={schedule.startDate}
-                onChange={(e) => handleScheduleChange(idx, 'startDate', e.target.value)}
+                value={schedule.endDate}
+                onChange={(e) => updateScheduleField(idx, "endDate", e.target.value)}
               />
             </div>
+          )}
+        </div>
+      ))}
 
-            {schedule.type === 'linear' && (
-              <div>
-                <label>End Date: </label>
-                <input
-                  type="date"
-                  value={schedule.endDate}
-                  onChange={(e) => handleScheduleChange(idx, 'endDate', e.target.value)}
-                />
-              </div>
-            )}
-          </div>
-        );
-      })}
-
-      <button type="button" onClick={addSchedule}>
-        Add Schedule
+      <button onClick={addSchedule}>Add Schedule</button>
+      <button onClick={handleCalculate} style={{ marginLeft: 20 }}>
+        Calculate
       </button>
 
-      <div style={{ marginTop: '20px' }}>
-        <button type="button" onClick={handleCalculate}>
-          Calculate
-        </button>
-      </div>
+      {error && <p style={{ color: "red" }}>{error}</p>}
 
-      {results && (
+      {results.length > 0 && (
         <>
-          <h2>Results</h2>
-
-          <h3>Aggregate by Token</h3>
-          <table border="1" cellPadding="5" style={{ borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                <th>Token</th>
-                <th>Total Unlocked</th>
-                <th>Total Locked</th>
-                <th>Total Value ($)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(results.aggregates).map(([token, agg]) => (
-                <tr key={token}>
-                  <td>{token}</td>
-                  <td>{agg.totalUnlocked.toFixed(2)}</td>
-                  <td>{agg.totalLocked.toFixed(2)}</td>
-                  <td>{agg.totalValue.toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <h3>Unlock Events Details</h3>
-          <table border="1" cellPadding="5" style={{ borderCollapse: 'collapse' }}>
+          <h2>Results Summary</h2>
+          <table border="1" cellPadding="5" style={{ borderCollapse: "collapse" }}>
             <thead>
               <tr>
                 <th>Date</th>
                 <th>Token</th>
                 <th>Amount</th>
-                <th>Discounted Price ($)</th>
-                <th>Total Value ($)</th>
+                <th>Discounted Price</th>
+                <th>Total Value</th>
                 <th>Discount %</th>
               </tr>
             </thead>
             <tbody>
-              {results.detailedResults.map((r, idx) => (
-                <tr key={idx}>
+              {results.map((r, i) => (
+                <tr key={i}>
                   <td>{r.date}</td>
-                  <td>{r.tokenSymbol}</td>
+                  <td>{r.token.toUpperCase()}</td>
                   <td>{r.amount.toFixed(2)}</td>
-                  <td>{r.discountedPrice.toFixed(2)}</td>
-                  <td>{r.totalValue.toFixed(2)}</td>
+                  <td>${r.discountedPrice.toFixed(2)}</td>
+                  <td>${r.totalValue.toFixed(2)}</td>
                   <td>{r.discountPercent.toFixed(2)}%</td>
                 </tr>
               ))}
             </tbody>
           </table>
+
+          <h3>Charts</h3>
+
+          <div style={{ marginBottom: 50 }}>
+            <h4>Unlocked Tokens Over Time (All Tokens Combined)</h4>
+            <Line
+              data={{
+                labels: chartLabels,
+                datasets: [
+                  {
+                    label: "Unlocked Tokens",
+                    data: unlockedTokensData,
+                    fill: false,
+                    borderColor: "blue",
+                    tension: 0.3,
+                  },
+                ],
+              }}
+            />
+          </div>
+
+          <div>
+            <h4>Portfolio Value Over Time</h4>
+            <Bar
+              data={{
+                labels: chartLabels,
+                datasets: [
+                  {
+                    label: "Portfolio Value ($)",
+                    data: portfolioValueData,
+                    backgroundColor: "green",
+                  },
+                ],
+              }}
+            />
+          </div>
         </>
       )}
     </div>
