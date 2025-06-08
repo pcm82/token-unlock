@@ -1,10 +1,10 @@
 {
   "files": {
-    "main.js": "/token-unlock/static/js/main.cdd1bc0b.js",
+    "main.js": "/token-unlock/static/js/main.c844e423.js",
     "index.html": "/token-unlock/index.html",
-    "main.cdd1bc0b.js.map": "/token-unlock/static/js/main.cdd1bc0b.js.map"
+    "main.c844e423.js.map": "/token-unlock/static/js/main.c844e423.js.map"
   },
   "entrypoints": [
-    "static/js/main.cdd1bc0b.js"
+    "static/js/main.c844e423.js"
   ]
 }
