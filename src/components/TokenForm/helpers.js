@@ -1,5 +1,6 @@
 // components/TokenForm/helpers.js
-import cronParser from 'cron-parser';
+// Removed cron-parser import since we no longer use it
+// import cronParser from 'cron-parser';
 
 export function generateUnlockEvents(schedule) {
   const {
@@ -42,17 +43,8 @@ export function generateUnlockEvents(schedule) {
         unlockDates.push(new Date(current));
         current.setMonth(current.getMonth() + 1);
       }
-    } else if (frequencyType === 'customCron') {
-      const interval = cronParser.parseExpression(frequencyValue, {
-        currentDate: start,
-        endDate: end,
-      });
-      while (true) {
-        const date = interval.next().toDate();
-        if (date > end) break;
-        unlockDates.push(date);
-      }
     }
+    // Removed 'customCron' branch entirely
   }
 
   const amountPerUnlock = amt / unlockDates.length;

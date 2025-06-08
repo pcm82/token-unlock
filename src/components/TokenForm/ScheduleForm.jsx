@@ -1,17 +1,8 @@
 // components/TokenForm/ScheduleForm.jsx
 import React from 'react';
-import cronstrue from 'cronstrue';
 
 export default function ScheduleForm({ index, schedule, tokens, onChange, onTokenChange, onRemove }) {
   const handleFieldChange = (field, value) => onChange(index, field, value);
-
-  const updateCron = (field, value) => {
-    const newSchedule = { ...schedule, [field]: value };
-    const cronExpr = `${newSchedule.cronMin} ${newSchedule.cronHour} ${newSchedule.cronDom} ${newSchedule.cronMon} ${newSchedule.cronDow}`;
-    newSchedule.frequencyValue = cronExpr;
-    onChange(index, field, value);
-    onChange(index, 'frequencyValue', cronExpr);
-  };
 
   return (
     <fieldset style={{ marginBottom: 20, padding: 15, border: '1px solid #ccc', borderRadius: 8 }}>
@@ -89,7 +80,7 @@ export default function ScheduleForm({ index, schedule, tokens, onChange, onToke
               <option value="daily">Daily</option>
               <option value="weekly">Weekly</option>
               <option value="monthly">Monthly</option>
-              <option value="customCron">Custom Cron</option>
+              {/* Removed customCron option */}
             </select>
           </label>
 
@@ -102,20 +93,7 @@ export default function ScheduleForm({ index, schedule, tokens, onChange, onToke
             </label>
           )}
 
-          {schedule.frequencyType === 'customCron' && (
-            <>
-              {/* Cron field inputs */}
-              <label>Minute:<input value={schedule.cronMin} onChange={e => updateCron('cronMin', e.target.value)} /></label>
-              <label>Hour:<input value={schedule.cronHour} onChange={e => updateCron('cronHour', e.target.value)} /></label>
-              <label>Day:<input value={schedule.cronDom} onChange={e => updateCron('cronDom', e.target.value)} /></label>
-              <label>Month:<input value={schedule.cronMon} onChange={e => updateCron('cronMon', e.target.value)} /></label>
-              <label>Weekday:<input value={schedule.cronDow} onChange={e => updateCron('cronDow', e.target.value)} /></label>
-              <br />
-              <p style={{ color: '#007' }}>
-                Cron Description: {cronstrue.toString(schedule.frequencyValue || '* * * * *')}
-              </p>
-            </>
-          )}
+          {/* Removed all cron inputs and description */}
         </>
       )}
 
