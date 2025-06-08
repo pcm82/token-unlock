@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import TokenForm from './TokenForm';
+import TokenForm from '../src/components/TokenForm'
 import {
   LineChart,
   Line,

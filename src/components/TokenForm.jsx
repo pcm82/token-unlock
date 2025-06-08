@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import cronParser from 'cron-parser';
-import { calculateDLOM } from './utils/blackScholes';
+import { calculateDLOM } from '../utils/blackScholes';
 
 const defaultSchedule = {
   token: null,
