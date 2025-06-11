@@ -25,38 +25,53 @@ export default function App() {
       {results && (
         <div className="controls">
           <div className="switch-group">
-            <label className="switch-label">
-              <input
-                type="checkbox"
-                checked={showTable}
-                onChange={(e) => setShowTable(e.target.checked)}
-              />
-              <span className="slider"></span>
-              Show Table
-            </label>
-            <label className="switch-label">
-              <input
-                type="checkbox"
-                checked={showCumulative}
-                onChange={(e) => setShowCumulative(e.target.checked)}
-              />
-              <span className="slider"></span>
-              Show Cumulative
-            </label>
-            <label className="switch-label">
-              <input
-                type="checkbox"
-                checked={showInDollars}
-                onChange={(e) => setShowInDollars(e.target.checked)}
-              />
-              <span className="slider"></span>
-              Show in {showInDollars ? 'Dollars' : 'Tokens'}
-            </label>
+            <div className="switch-item">
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={showTable}
+                  onChange={(e) => setShowTable(e.target.checked)}
+                />
+                <span className="slider round"></span>
+              </label>
+              <span className="switch-text">Show Table</span>
+            </div>
+
+            <div className="switch-item">
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={showCumulative}
+                  onChange={(e) => setShowCumulative(e.target.checked)}
+                />
+                <span className="slider round"></span>
+              </label>
+              <span className="switch-text">Show Cumulative Values</span>
+            </div>
+
+            <div className="switch-item">
+              <label className="switch">
+                <input
+                  type="checkbox"
+                  checked={showInDollars}
+                  onChange={(e) => setShowInDollars(e.target.checked)}
+                />
+                <span className="slider round"></span>
+              </label>
+              <span className="switch-text">Display Mode: {showInDollars ? 'Dollars ($)' : 'Tokens'}</span>
+            </div>
           </div>
         </div>
       )}
 
-      {results && <ResultsDisplay results={results} showTable={showTable} showCumulative={showCumulative} showInDollars={showInDollars} />}
+      {results && (
+        <ResultsDisplay
+          results={results}
+          showTable={showTable}
+          showCumulative={showCumulative}
+          showInDollars={showInDollars}
+        />
+      )}
     </div>
   );
 }
@@ -119,7 +134,7 @@ function ResultsDisplay({ results, showTable, showCumulative, showInDollars }) {
       <p>Total Locked Tokens: {Number(totalLocked || 0).toFixed(2)}</p>
       <p>Total Portfolio Value: ${Number(totalValue || 0).toFixed(2)}</p>
 
-      <h3>Portfolio Unlock {showInDollars ? 'Value' : 'Tokens'} Over Time</h3>
+      <h3>Portfolio Unlock {showInDollars ? 'Value ($)' : 'Tokens'} Over Time</h3>
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={chartData}>
           <XAxis dataKey="date" />
@@ -130,19 +145,19 @@ function ResultsDisplay({ results, showTable, showCumulative, showInDollars }) {
             type="monotone"
             dataKey={showCumulative ? 'cumulativeUnlocked' : 'unlocked'}
             stroke="#82ca9d"
-            name={`Unlocked ${showInDollars ? 'Value' : 'Tokens'}`}
+            name={`Unlocked ${showInDollars ? 'Value ($)' : 'Tokens'}`}
           />
           <Line
             type="monotone"
             dataKey={showCumulative ? 'cumulativeLocked' : 'locked'}
             stroke="#8884d8"
-            name={`Locked ${showInDollars ? 'Value' : 'Tokens'}`}
+            name={`Locked ${showInDollars ? 'Value ($)' : 'Tokens'}`}
           />
           <Line
             type="monotone"
             dataKey="totalValue"
             stroke="#ff7300"
-            name="Total Value"
+            name="Total Value ($)"
           />
         </LineChart>
       </ResponsiveContainer>
