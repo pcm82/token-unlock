@@ -20,6 +20,8 @@ This web application enables accounting, operations, and investment teams to:
 * Interactive tables displaying detailed unlock events and discount percentages.
 * Time series charts showing locked, unlocked, and total portfolio value.
 * Responsive UI suitable for non-technical users.
+* Table can be sorted by any column ascending or descending
+* Current view can be exported and imported for easy sharing
 
 ---
 
@@ -108,3 +110,4 @@ The build output will be in the `build` folder, which can be deployed to any sta
    * Add unit and integration tests for critical functions.
    * Incorporate additional pricing models or Monte Carlo simulation for DLOM.
    * Enhance UI with improved accessibility and error handling.
+   * Add URL service to save a view as a shortened URL for easy sharing
