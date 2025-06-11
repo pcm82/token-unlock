@@ -1,10 +1,13 @@
 {
   "files": {
-    "main.js": "/token-unlock/static/js/main.c844e423.js",
+    "main.css": "/token-unlock/static/css/main.0b6a0858.css",
+    "main.js": "/token-unlock/static/js/main.2489b046.js",
     "index.html": "/token-unlock/index.html",
-    "main.c844e423.js.map": "/token-unlock/static/js/main.c844e423.js.map"
+    "main.0b6a0858.css.map": "/token-unlock/static/css/main.0b6a0858.css.map",
+    "main.2489b046.js.map": "/token-unlock/static/js/main.2489b046.js.map"
   },
   "entrypoints": [
-    "static/js/main.c844e423.js"
+    "static/css/main.0b6a0858.css",
+    "static/js/main.2489b046.js"
   ]
 }
