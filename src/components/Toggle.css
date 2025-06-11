@@ -1,0 +1,17 @@
+.toggle-button {
+  flex: 1;
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.toggle-button.active {
+  background: #007acc;
+  color: white;
+}
+.toggle-button:focus {
+  outline: 2px solid #005fa3;
+}
