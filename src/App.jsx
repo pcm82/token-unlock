@@ -18,34 +18,56 @@ export default function App() {
   const [showCumulative, setShowCumulative] = useState(false);
   const [showInDollars, setShowInDollars] = useState(true);
 
-  // Load from URL on initial mount
+  // Load from localStorage on mount (optional, can be removed if you want no persistence)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const storedData = params.get('data');
-    const parsed = storedData ? JSON.parse(decodeURIComponent(storedData)) : null;
-
-    if (parsed) {
-      setResults(parsed);
-      setInitialFormValues(parsed.inputs || null);
+    const saved = localStorage.getItem('tokenUnlockResults');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setResults(parsed);
+        setInitialFormValues(parsed.inputs || null);
+      } catch {}
     }
-    setShowTable(params.get('showTable') === 'true');
-    setShowCumulative(params.get('showCumulative') === 'true');
-    setShowInDollars(params.get('showInDollars') !== 'false');
   }, []);
 
-  // Update URL on state change
+  // Save results to localStorage on update (optional)
   useEffect(() => {
+    if (results) {
+      localStorage.setItem('tokenUnlockResults', JSON.stringify(results));
+    }
+  }, [results]);
+
+  // JSON export
+  const handleExportJSON = () => {
     if (!results) return;
+    const dataStr = JSON.stringify(results, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'token-unlock-results.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
-    const params = new URLSearchParams();
-    params.set('showTable', showTable);
-    params.set('showCumulative', showCumulative);
-    params.set('showInDollars', showInDollars);
-    params.set('data', encodeURIComponent(JSON.stringify(results)));
-
-    const newUrl = `${window.location.pathname}?${params.toString()}`;
-    window.history.replaceState(null, '', newUrl);
-  }, [results, showTable, showCumulative, showInDollars]);
+  // JSON import
+  const handleImportJSON = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const imported = JSON.parse(evt.target.result);
+        setResults(imported);
+        setInitialFormValues(imported.inputs || null);
+      } catch (err) {
+        alert('Invalid JSON file');
+      }
+    };
+    reader.readAsText(file);
+    // Reset file input so same file can be uploaded again if needed
+    e.target.value = null;
+  };
 
   return (
     <div className="app-container">
@@ -91,6 +113,14 @@ export default function App() {
               <span className="switch-text">Display Mode: {showInDollars ? 'Dollars ($)' : 'Tokens'}</span>
             </div>
           </div>
+
+          <div className="import-export-buttons">
+            <button onClick={handleExportJSON}>Export Results JSON</button>
+            <label className="import-json-label">
+              Import Results JSON
+              <input type="file" accept="application/json" onChange={handleImportJSON} style={{ display: 'none' }} />
+            </label>
+          </div>
         </div>
       )}
 
@@ -109,6 +139,7 @@ export default function App() {
 function ResultsDisplay({ results, showTable, showCumulative, showInDollars }) {
   const { results: unlockEvents, spot, totalLocked, totalUnlocked, totalValue } = results;
 
+  // Prepare date aggregated data for the chart
   const dateMap = new Map();
   const now = new Date();
   let cumulativeUnlocked = 0;
@@ -156,6 +187,46 @@ function ResultsDisplay({ results, showTable, showCumulative, showInDollars }) {
 
   const chartData = sortedData;
 
+  // Sorting logic for table with single-column sort & arrow indicator
+  const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'asc' });
+
+  // Helper to get nested key values (like 'token.symbol')
+  const getValue = (obj, key) => {
+    return key.split('.').reduce((acc, part) => (acc ? acc[part] : undefined), obj);
+  };
+
+  // Sort unlockEvents based on sortConfig
+  const sortedUnlockEvents = [...unlockEvents].sort((a, b) => {
+    const aVal = getValue(a, sortConfig.key);
+    const bVal = getValue(b, sortConfig.key);
+
+    // Handle numbers and strings
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+    }
+    if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  // Change sorting on header click
+  const requestSort = (key) => {
+    if (sortConfig.key === key) {
+      setSortConfig({
+        key,
+        direction: sortConfig.direction === 'asc' ? 'desc' : 'asc',
+      });
+    } else {
+      setSortConfig({ key, direction: 'asc' });
+    }
+  };
+
+  // Render sort arrow
+  const SortArrow = ({ columnKey }) => {
+    if (sortConfig.key !== columnKey) return null;
+    return sortConfig.direction === 'asc' ? ' ▲' : ' ▼';
+  };
+
   return (
     <>
       <h2>Results Summary</h2>
@@ -198,16 +269,34 @@ function ResultsDisplay({ results, showTable, showCumulative, showInDollars }) {
           <table className="unlocks-table">
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Amount</th>
-                <th>Discounted Price</th>
-                <th>Total Value</th>
-                <th>Discount %</th>
-                <th>Token</th>
+                <th onClick={() => requestSort('date')}>
+                  Date
+                  <SortArrow columnKey="date" />
+                </th>
+                <th onClick={() => requestSort('amount')}>
+                  Amount
+                  <SortArrow columnKey="amount" />
+                </th>
+                <th onClick={() => requestSort('discountedPrice')}>
+                  Discounted Price
+                  <SortArrow columnKey="discountedPrice" />
+                </th>
+                <th onClick={() => requestSort('totalValue')}>
+                  Total Value
+                  <SortArrow columnKey="totalValue" />
+                </th>
+                <th onClick={() => requestSort('discountPercent')}>
+                  Discount %
+                  <SortArrow columnKey="discountPercent" />
+                </th>
+                <th onClick={() => requestSort('token.symbol')}>
+                  Token
+                  <SortArrow columnKey="token.symbol" />
+                </th>
               </tr>
             </thead>
             <tbody>
-              {unlockEvents.map(({ date, amount, discountedPrice, totalValue, discountPercent, token }, i) => (
+              {sortedUnlockEvents.map(({ date, amount, discountedPrice, totalValue, discountPercent, token }, i) => (
                 <tr key={i}>
                   <td>{date}</td>
                   <td>{Number(amount || 0).toFixed(2)}</td>
