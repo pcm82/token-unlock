@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import TokenForm from '../src/components/TokenForm';
 import {
   LineChart,
@@ -17,6 +17,8 @@ export default function App() {
   const [showTable, setShowTable] = useState(true);
   const [showCumulative, setShowCumulative] = useState(false);
   const [showInDollars, setShowInDollars] = useState(true);
+
+  const importInputRef = useRef(null);
 
   // Load from localStorage on mount (optional, can be removed if you want no persistence)
   useEffect(() => {
@@ -65,79 +67,135 @@ export default function App() {
       }
     };
     reader.readAsText(file);
-    // Reset file input so same file can be uploaded again if needed
     e.target.value = null;
   };
+
+  // Reset everything with confirmation + clear first schedule inputs
+  const handleReset = () => {
+    if (
+      window.confirm(
+        'Are you sure you want to reset all data? This cannot be undone.'
+      )
+    ) {
+      localStorage.removeItem('tokenUnlockResults');
+      setResults(null);
+      setInitialFormValues(null);
+    }
+  };
+
+  // Check if results contain unlock events for display
+  const hasUnlockEvents =
+    results &&
+    Array.isArray(results.results) &&
+    results.results.length > 0;
 
   return (
     <div className="app-container">
       <h1>Token Unlock & DLOM Calculator</h1>
       <TokenForm onCalculate={setResults} initialValues={initialFormValues} />
 
-      {results && (
-        <div className="controls">
-          <div className="switch-group">
-            <div className="switch-item">
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={showTable}
-                  onChange={(e) => setShowTable(e.target.checked)}
-                />
-                <span className="slider round"></span>
-              </label>
-              <span className="switch-text">Show Table</span>
-            </div>
+      <div
+        className="import-export-buttons"
+        style={{ marginTop: '1rem', marginBottom: '1rem' }}
+      >
+        <button
+          onClick={handleExportJSON}
+          disabled={!hasUnlockEvents}
+          style={{
+            opacity: hasUnlockEvents ? 1 : 0.5,
+            cursor: hasUnlockEvents ? 'pointer' : 'not-allowed',
+          }}
+        >
+          Export Results JSON
+        </button>
 
-            <div className="switch-item">
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={showCumulative}
-                  onChange={(e) => setShowCumulative(e.target.checked)}
-                />
-                <span className="slider round"></span>
-              </label>
-              <span className="switch-text">Show Cumulative Values</span>
-            </div>
+        <button
+          onClick={() => importInputRef.current && importInputRef.current.click()}
+          style={{ marginLeft: '1rem' }}
+        >
+          Import Results JSON
+        </button>
 
-            <div className="switch-item">
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={showInDollars}
-                  onChange={(e) => setShowInDollars(e.target.checked)}
-                />
-                <span className="slider round"></span>
-              </label>
-              <span className="switch-text">Display Mode: {showInDollars ? 'Dollars ($)' : 'Tokens'}</span>
-            </div>
-          </div>
-
-          <div className="import-export-buttons">
-            <button onClick={handleExportJSON}>Export Results JSON</button>
-            <label className="import-json-label">
-              Import Results JSON
-              <input type="file" accept="application/json" onChange={handleImportJSON} style={{ display: 'none' }} />
-            </label>
-          </div>
-        </div>
-      )}
-
-      {results && (
-        <ResultsDisplay
-          results={results}
-          showTable={showTable}
-          showCumulative={showCumulative}
-          showInDollars={showInDollars}
+        <input
+          type="file"
+          accept="application/json"
+          onChange={handleImportJSON}
+          ref={importInputRef}
+          style={{ display: 'none' }}
         />
+
+        <button
+          onClick={handleReset}
+          style={{
+            marginLeft: '1rem',
+            backgroundColor: '#f44336',
+            color: 'white',
+            border: 'none',
+            padding: '0.5rem 1rem',
+            cursor: 'pointer',
+          }}
+        >
+          Reset All
+        </button>
+      </div>
+
+      {hasUnlockEvents && (
+        <>
+          <div className="controls">
+            <div className="switch-group">
+              <div className="switch-item">
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={showTable}
+                    onChange={(e) => setShowTable(e.target.checked)}
+                  />
+                  <span className="slider round"></span>
+                </label>
+                <span className="switch-text">Show Table</span>
+              </div>
+
+              <div className="switch-item">
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={showCumulative}
+                    onChange={(e) => setShowCumulative(e.target.checked)}
+                  />
+                  <span className="slider round"></span>
+                </label>
+                <span className="switch-text">Show Cumulative Values</span>
+              </div>
+
+              <div className="switch-item">
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={showInDollars}
+                    onChange={(e) => setShowInDollars(e.target.checked)}
+                  />
+                  <span className="switch-text">
+                    Display Mode: {showInDollars ? 'Dollars ($)' : 'Tokens'}
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <ResultsDisplay
+            results={results}
+            showTable={showTable}
+            showCumulative={showCumulative}
+            showInDollars={showInDollars}
+          />
+        </>
       )}
     </div>
   );
 }
 
 function ResultsDisplay({ results, showTable, showCumulative, showInDollars }) {
-  const { results: unlockEvents, spot, totalLocked, totalUnlocked, totalValue } = results;
+  const { results: unlockEvents } = results;
 
   // Prepare date aggregated data for the chart
   const dateMap = new Map();
@@ -164,7 +222,7 @@ function ResultsDisplay({ results, showTable, showCumulative, showInDollars }) {
     let lockValue = Number(amount);
 
     if (showInDollars) {
-      unlockValue *= Number(spot || 0);
+      unlockValue *= Number(results.spot || 0);
       lockValue *= Number(discountedPrice || 0);
     }
 
@@ -175,7 +233,9 @@ function ResultsDisplay({ results, showTable, showCumulative, showInDollars }) {
     }
   });
 
-  const sortedData = Array.from(dateMap.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
+  const sortedData = Array.from(dateMap.values()).sort(
+    (a, b) => new Date(a.date) - new Date(b.date)
+  );
 
   sortedData.forEach((entry) => {
     cumulativeUnlocked += entry.unlocked;
@@ -187,20 +247,16 @@ function ResultsDisplay({ results, showTable, showCumulative, showInDollars }) {
 
   const chartData = sortedData;
 
-  // Sorting logic for table with single-column sort & arrow indicator
   const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'asc' });
 
-  // Helper to get nested key values (like 'token.symbol')
   const getValue = (obj, key) => {
     return key.split('.').reduce((acc, part) => (acc ? acc[part] : undefined), obj);
   };
 
-  // Sort unlockEvents based on sortConfig
   const sortedUnlockEvents = [...unlockEvents].sort((a, b) => {
     const aVal = getValue(a, sortConfig.key);
     const bVal = getValue(b, sortConfig.key);
 
-    // Handle numbers and strings
     if (typeof aVal === 'number' && typeof bVal === 'number') {
       return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
     }
@@ -209,7 +265,6 @@ function ResultsDisplay({ results, showTable, showCumulative, showInDollars }) {
     return 0;
   });
 
-  // Change sorting on header click
   const requestSort = (key) => {
     if (sortConfig.key === key) {
       setSortConfig({
@@ -221,7 +276,6 @@ function ResultsDisplay({ results, showTable, showCumulative, showInDollars }) {
     }
   };
 
-  // Render sort arrow
   const SortArrow = ({ columnKey }) => {
     if (sortConfig.key !== columnKey) return null;
     return sortConfig.direction === 'asc' ? ' ▲' : ' ▼';
@@ -229,41 +283,43 @@ function ResultsDisplay({ results, showTable, showCumulative, showInDollars }) {
 
   return (
     <>
-      <h2>Results Summary</h2>
-      <p>Spot Price: ${Number(spot || 0).toFixed(2)}</p>
-      <p>Total Unlocked Tokens: {Number(totalUnlocked || 0).toFixed(2)}</p>
-      <p>Total Locked Tokens: {Number(totalLocked || 0).toFixed(2)}</p>
-      <p>Total Portfolio Value: ${Number(totalValue || 0).toFixed(2)}</p>
+      {chartData.length > 0 && (
+        <>
+          <h3>Portfolio Unlock {showInDollars ? 'Value ($)' : 'Tokens'} Over Time</h3>
+          <ResponsiveContainer
+            width="100%"
+            height={300}
+            style={{ border: '1px solid #ccc', borderRadius: '4px', padding: '8px' }}
+          >
+            <LineChart data={chartData}>
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey={showCumulative ? 'cumulativeUnlocked' : 'unlocked'}
+                stroke="#82ca9d"
+                name={`Unlocked ${showInDollars ? 'Value ($)' : 'Tokens'}`}
+              />
+              <Line
+                type="monotone"
+                dataKey={showCumulative ? 'cumulativeLocked' : 'locked'}
+                stroke="#8884d8"
+                name={`Locked ${showInDollars ? 'Value ($)' : 'Tokens'}`}
+              />
+              <Line
+                type="monotone"
+                dataKey="totalValue"
+                stroke="#ff7300"
+                name="Total Value ($)"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </>
+      )}
 
-      <h3>Portfolio Unlock {showInDollars ? 'Value ($)' : 'Tokens'} Over Time</h3>
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={chartData}>
-          <XAxis dataKey="date" />
-          <YAxis />
-          <Tooltip />
-          <Legend />
-          <Line
-            type="monotone"
-            dataKey={showCumulative ? 'cumulativeUnlocked' : 'unlocked'}
-            stroke="#82ca9d"
-            name={`Unlocked ${showInDollars ? 'Value ($)' : 'Tokens'}`}
-          />
-          <Line
-            type="monotone"
-            dataKey={showCumulative ? 'cumulativeLocked' : 'locked'}
-            stroke="#8884d8"
-            name={`Locked ${showInDollars ? 'Value ($)' : 'Tokens'}`}
-          />
-          <Line
-            type="monotone"
-            dataKey="totalValue"
-            stroke="#ff7300"
-            name="Total Value ($)"
-          />
-        </LineChart>
-      </ResponsiveContainer>
-
-      {showTable && (
+      {showTable && unlockEvents.length > 0 && (
         <>
           <h3>Unlock Events Table</h3>
           <table className="unlocks-table">
@@ -296,16 +352,28 @@ function ResultsDisplay({ results, showTable, showCumulative, showInDollars }) {
               </tr>
             </thead>
             <tbody>
-              {sortedUnlockEvents.map(({ date, amount, discountedPrice, totalValue, discountPercent, token }, i) => (
-                <tr key={i}>
-                  <td>{date}</td>
-                  <td>{Number(amount || 0).toFixed(2)}</td>
-                  <td>${Number(discountedPrice || 0).toFixed(2)}</td>
-                  <td>${Number(totalValue || 0).toFixed(2)}</td>
-                  <td>{Number(discountPercent || 0).toFixed(2)}%</td>
-                  <td>{token?.symbol?.toUpperCase() || 'N/A'}</td>
-                </tr>
-              ))}
+              {sortedUnlockEvents.map(
+                (
+                  {
+                    date,
+                    amount,
+                    discountedPrice,
+                    totalValue,
+                    discountPercent,
+                    token,
+                  },
+                  i
+                ) => (
+                  <tr key={i}>
+                    <td>{date}</td>
+                    <td>{Number(amount || 0).toFixed(2)}</td>
+                    <td>${Number(discountedPrice || 0).toFixed(2)}</td>
+                    <td>${Number(totalValue || 0).toFixed(2)}</td>
+                    <td>{Number(discountPercent || 0).toFixed(2)}%</td>
+                    <td>{token?.symbol?.toUpperCase() || 'N/A'}</td>
+                  </tr>
+                )
+              )}
             </tbody>
           </table>
         </>
