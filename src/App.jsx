@@ -21,7 +21,6 @@ export default function App() {
 
   const importInputRef = useRef(null);
 
-  // Load from localStorage on mount (optional, can be removed if you want no persistence)
   useEffect(() => {
     const saved = localStorage.getItem('tokenUnlockResults');
     if (saved) {
@@ -33,14 +32,12 @@ export default function App() {
     }
   }, []);
 
-  // Save results to localStorage on update (optional)
   useEffect(() => {
     if (results) {
       localStorage.setItem('tokenUnlockResults', JSON.stringify(results));
     }
   }, [results]);
 
-  // JSON export
   const handleExportJSON = () => {
     if (!results) return;
     const dataStr = JSON.stringify(results, null, 2);
@@ -53,7 +50,6 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
-  // JSON import
   const handleImportJSON = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -71,18 +67,15 @@ export default function App() {
     e.target.value = null;
   };
 
-  // Reset everything with confirmation + clear first schedule inputs
   const handleReset = () => {
     if (window.confirm('Are you sure you want to reset all data? This cannot be undone.')) {
       localStorage.removeItem('tokenUnlockResults');
       setResults(null);
       setInitialFormValues(null);
-      setResetKey(prev => prev + 1); // This will re-mount TokenForm and reset all its state
+      setResetKey(prev => prev + 1);
     }
   };
 
-
-  // Check if results contain unlock events for display
   const hasUnlockEvents =
     results &&
     Array.isArray(results.results) &&
@@ -90,35 +83,21 @@ export default function App() {
 
   return (
     <div className="app-container">
-      <h1>Token Unlock & DLOM Calculator</h1>
-  <TokenForm
-    key={resetKey}
-    onCalculate={setResults}
-    initialValues={initialFormValues}
-  />
+      <h1 className="main-title">Token Unlock & DLOM Calculator</h1>
 
-      <div
-        className="import-export-buttons"
-        style={{ marginTop: '1rem', marginBottom: '1rem' }}
-      >
-        <button
-          onClick={handleExportJSON}
-          disabled={!hasUnlockEvents}
-          style={{
-            opacity: hasUnlockEvents ? 1 : 0.5,
-            cursor: hasUnlockEvents ? 'pointer' : 'not-allowed',
-          }}
-        >
-          Export Results JSON
+      <TokenForm
+        key={resetKey}
+        onCalculate={setResults}
+        initialValues={initialFormValues}
+      />
+
+      <div className="button-bar">
+        <button onClick={handleExportJSON} disabled={!hasUnlockEvents} className="btn">
+          Export JSON
         </button>
-
-        <button
-          onClick={() => importInputRef.current && importInputRef.current.click()}
-          style={{ marginLeft: '1rem' }}
-        >
-          Import Results JSON
+        <button onClick={() => importInputRef.current && importInputRef.current.click()} className="btn">
+          Import JSON
         </button>
-
         <input
           type="file"
           accept="application/json"
@@ -126,63 +105,26 @@ export default function App() {
           ref={importInputRef}
           style={{ display: 'none' }}
         />
-
-        <button
-          onClick={handleReset}
-          style={{
-            marginLeft: '1rem',
-            backgroundColor: '#f44336',
-            color: 'white',
-            border: 'none',
-            padding: '0.5rem 1rem',
-            cursor: 'pointer',
-          }}
-        >
+        <button onClick={handleReset} className="btn reset-btn">
           Reset All
         </button>
       </div>
 
       {hasUnlockEvents && (
         <>
-          <div className="controls">
-            <div className="switch-group">
-              <div className="switch-item">
-                <label className="switch">
-                  <input
-                    type="checkbox"
-                    checked={showTable}
-                    onChange={(e) => setShowTable(e.target.checked)}
-                  />
-                  <span className="slider round"></span>
-                </label>
-                <span className="switch-text">Show Table</span>
-              </div>
-
-              <div className="switch-item">
-                <label className="switch">
-                  <input
-                    type="checkbox"
-                    checked={showCumulative}
-                    onChange={(e) => setShowCumulative(e.target.checked)}
-                  />
-                  <span className="slider round"></span>
-                </label>
-                <span className="switch-text">Show Cumulative Values</span>
-              </div>
-
-              <div className="switch-item">
-                <label className="switch">
-                  <input
-                    type="checkbox"
-                    checked={showInDollars}
-                    onChange={(e) => setShowInDollars(e.target.checked)}
-                  />
-                  <span className="switch-text">
-                    Display Mode: {showInDollars ? 'Dollars ($)' : 'Tokens'}
-                  </span>
-                </label>
-              </div>
-            </div>
+          <div className="toggle-section">
+            <label>
+              <input type="checkbox" checked={showTable} onChange={(e) => setShowTable(e.target.checked)} />
+              Show Table
+            </label>
+            <label>
+              <input type="checkbox" checked={showCumulative} onChange={(e) => setShowCumulative(e.target.checked)} />
+              Cumulative
+            </label>
+            <label>
+              <input type="checkbox" checked={showInDollars} onChange={(e) => setShowInDollars(e.target.checked)} />
+              {showInDollars ? 'Display in $' : 'Display in Tokens'}
+            </label>
           </div>
 
           <ResultsDisplay
