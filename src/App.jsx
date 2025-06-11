@@ -9,44 +9,61 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import './components/UnlocksTable.css';
+import './App.css';
 
 export default function App() {
   const [results, setResults] = useState(null);
   const [showTable, setShowTable] = useState(true);
   const [showCumulative, setShowCumulative] = useState(false);
-  const [showDollars, setShowDollars] = useState(true);
+  const [showInDollars, setShowInDollars] = useState(true);
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: 20 }}>
+    <div className="app-container">
       <h1>Token Unlock & DLOM Calculator</h1>
       <TokenForm onCalculate={setResults} />
 
       {results && (
-        <ResultsDisplay
-          results={results}
-          showTable={showTable}
-          setShowTable={setShowTable}
-          showCumulative={showCumulative}
-          setShowCumulative={setShowCumulative}
-          showDollars={showDollars}
-          setShowDollars={setShowDollars}
-        />
+        <div className="controls">
+          <div className="switch-group">
+            <label className="switch-label">
+              <input
+                type="checkbox"
+                checked={showTable}
+                onChange={(e) => setShowTable(e.target.checked)}
+              />
+              <span className="slider"></span>
+              Show Table
+            </label>
+            <label className="switch-label">
+              <input
+                type="checkbox"
+                checked={showCumulative}
+                onChange={(e) => setShowCumulative(e.target.checked)}
+              />
+              <span className="slider"></span>
+              Show Cumulative
+            </label>
+            <label className="switch-label">
+              <input
+                type="checkbox"
+                checked={showInDollars}
+                onChange={(e) => setShowInDollars(e.target.checked)}
+              />
+              <span className="slider"></span>
+              Show in {showInDollars ? 'Dollars' : 'Tokens'}
+            </label>
+          </div>
+        </div>
       )}
+
+      {results && <ResultsDisplay results={results} showTable={showTable} showCumulative={showCumulative} showInDollars={showInDollars} />}
     </div>
   );
 }
 
-function ResultsDisplay({
-  results,
-  showTable,
-  setShowTable,
-  showCumulative,
-  setShowCumulative,
-  showDollars,
-  setShowDollars,
-}) {
+function ResultsDisplay({ results, showTable, showCumulative, showInDollars }) {
   const { results: unlockEvents, spot, totalLocked, totalUnlocked, totalValue } = results;
+
   const dateMap = new Map();
   const now = new Date();
   let cumulativeUnlocked = 0;
@@ -55,84 +72,84 @@ function ResultsDisplay({
   unlockEvents.forEach(({ date, amount, discountedPrice }) => {
     const d = new Date(date);
     const dateStr = d.toISOString().slice(0, 10);
-    const key = dateStr;
-    if (!dateMap.has(key)) {
-      dateMap.set(key, { date: key, unlocked: 0, locked: 0, totalValue: 0 });
+    if (!dateMap.has(dateStr)) {
+      dateMap.set(dateStr, {
+        date: dateStr,
+        unlocked: 0,
+        locked: 0,
+        totalValue: 0,
+        cumulativeUnlocked: 0,
+        cumulativeLocked: 0,
+      });
     }
-    const entry = dateMap.get(key);
+    const entry = dateMap.get(dateStr);
 
-    const unlockedValue = Number(amount) * Number(spot || 0);
-    const lockedValue = Number(amount) * Number(discountedPrice || 0);
+    let unlockValue = Number(amount);
+    let lockValue = Number(amount);
+
+    if (showInDollars) {
+      unlockValue *= Number(spot || 0);
+      lockValue *= Number(discountedPrice || 0);
+    }
 
     if (d <= now) {
-      entry.unlocked += showDollars ? unlockedValue : Number(amount);
+      entry.unlocked += unlockValue;
     } else {
-      entry.locked += showDollars ? lockedValue : Number(amount);
+      entry.locked += lockValue;
     }
   });
 
-  const chartData = Array.from(dateMap.entries())
-    .sort(([a], [b]) => new Date(a) - new Date(b))
-    .map(([_, val]) => {
-      if (showCumulative) {
-        cumulativeUnlocked += val.unlocked;
-        cumulativeLocked += val.locked;
-        return {
-          date: val.date,
-          unlocked: cumulativeUnlocked,
-          locked: cumulativeLocked,
-          totalValue: cumulativeUnlocked + cumulativeLocked,
-        };
-      } else {
-        return val;
-      }
-    });
+  const sortedData = Array.from(dateMap.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  sortedData.forEach((entry) => {
+    cumulativeUnlocked += entry.unlocked;
+    cumulativeLocked += entry.locked;
+    entry.totalValue = entry.unlocked + entry.locked;
+    entry.cumulativeUnlocked = cumulativeUnlocked;
+    entry.cumulativeLocked = cumulativeLocked;
+  });
+
+  const chartData = sortedData;
 
   return (
-    <div style={{ marginTop: 40 }}>
-      <div style={{ display: 'flex', gap: 20, marginBottom: 20 }}>
-        <label>
-          <input
-            type="checkbox"
-            checked={showCumulative}
-            onChange={() => setShowCumulative((v) => !v)}
-          />{' '}
-          Cumulative
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={showDollars}
-            onChange={() => setShowDollars((v) => !v)}
-          />{' '}
-          Show in Dollars
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={showTable}
-            onChange={() => setShowTable((v) => !v)}
-          />{' '}
-          Show Table
-        </label>
-      </div>
+    <>
+      <h2>Results Summary</h2>
+      <p>Spot Price: ${Number(spot || 0).toFixed(2)}</p>
+      <p>Total Unlocked Tokens: {Number(totalUnlocked || 0).toFixed(2)}</p>
+      <p>Total Locked Tokens: {Number(totalLocked || 0).toFixed(2)}</p>
+      <p>Total Portfolio Value: ${Number(totalValue || 0).toFixed(2)}</p>
 
-      <h3>Portfolio Unlock Value Over Time</h3>
+      <h3>Portfolio Unlock {showInDollars ? 'Value' : 'Tokens'} Over Time</h3>
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={chartData}>
           <XAxis dataKey="date" />
           <YAxis />
           <Tooltip />
           <Legend />
-          <Line type="monotone" dataKey="locked" stroke="#8884d8" name="Locked" />
-          <Line type="monotone" dataKey="unlocked" stroke="#82ca9d" name="Unlocked" />
-          <Line type="monotone" dataKey="totalValue" stroke="#ff7300" name="Total" />
+          <Line
+            type="monotone"
+            dataKey={showCumulative ? 'cumulativeUnlocked' : 'unlocked'}
+            stroke="#82ca9d"
+            name={`Unlocked ${showInDollars ? 'Value' : 'Tokens'}`}
+          />
+          <Line
+            type="monotone"
+            dataKey={showCumulative ? 'cumulativeLocked' : 'locked'}
+            stroke="#8884d8"
+            name={`Locked ${showInDollars ? 'Value' : 'Tokens'}`}
+          />
+          <Line
+            type="monotone"
+            dataKey="totalValue"
+            stroke="#ff7300"
+            name="Total Value"
+          />
         </LineChart>
       </ResponsiveContainer>
 
       {showTable && (
         <>
-          <h3 style={{ marginTop: 40 }}>Unlock Events</h3>
+          <h3>Unlock Events Table</h3>
           <table className="unlocks-table">
             <thead>
               <tr>
@@ -145,20 +162,20 @@ function ResultsDisplay({
               </tr>
             </thead>
             <tbody>
-              {unlockEvents.map((ev, i) => (
+              {unlockEvents.map(({ date, amount, discountedPrice, totalValue, discountPercent, token }, i) => (
                 <tr key={i}>
-                  <td>{ev.date}</td>
-                  <td>{Number(ev.amount || 0).toFixed(2)}</td>
-                  <td>${Number(ev.discountedPrice || 0).toFixed(2)}</td>
-                  <td>${Number(ev.totalValue || 0).toFixed(2)}</td>
-                  <td>{Number(ev.discountPercent || 0).toFixed(2)}%</td>
-                  <td>{ev.token?.symbol?.toUpperCase() || 'N/A'}</td>
+                  <td>{date}</td>
+                  <td>{Number(amount || 0).toFixed(2)}</td>
+                  <td>${Number(discountedPrice || 0).toFixed(2)}</td>
+                  <td>${Number(totalValue || 0).toFixed(2)}</td>
+                  <td>{Number(discountPercent || 0).toFixed(2)}%</td>
+                  <td>{token?.symbol?.toUpperCase() || 'N/A'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </>
       )}
-    </div>
+    </>
   );
 }

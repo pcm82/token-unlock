@@ -149,7 +149,7 @@ export default function ScheduleForm({ index, schedule, tokens, onChange, onToke
               <option value="daily">Daily</option>
               <option value="weekly">Weekly</option>
               <option value="monthly">Monthly</option>
-              <option value="customCron">Custom Cron</option>
+              {/* <option value="customCron">Custom Cron</option> */}
             </select>
           </label>
 
@@ -168,7 +168,7 @@ export default function ScheduleForm({ index, schedule, tokens, onChange, onToke
             </label>
           )}
 
-          {schedule.frequencyType === 'customCron' && (
+          {/* {schedule.frequencyType === 'customCron' && (
             <>
               <label>
                 Minute:
@@ -195,7 +195,7 @@ export default function ScheduleForm({ index, schedule, tokens, onChange, onToke
                 Cron Description: {cronstrue.toString(schedule.frequencyValue || '* * * * *')}
               </p>
             </>
-          )}
+          )} */}
         </>
       )}
 
