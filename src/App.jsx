@@ -17,6 +17,7 @@ export default function App() {
   const [showTable, setShowTable] = useState(true);
   const [showCumulative, setShowCumulative] = useState(false);
   const [showInDollars, setShowInDollars] = useState(true);
+  const [resetKey, setResetKey] = useState(0);
 
   const importInputRef = useRef(null);
 
@@ -72,16 +73,14 @@ export default function App() {
 
   // Reset everything with confirmation + clear first schedule inputs
   const handleReset = () => {
-    if (
-      window.confirm(
-        'Are you sure you want to reset all data? This cannot be undone.'
-      )
-    ) {
+    if (window.confirm('Are you sure you want to reset all data? This cannot be undone.')) {
       localStorage.removeItem('tokenUnlockResults');
       setResults(null);
       setInitialFormValues(null);
+      setResetKey(prev => prev + 1); // This will re-mount TokenForm and reset all its state
     }
   };
+
 
   // Check if results contain unlock events for display
   const hasUnlockEvents =
@@ -92,7 +91,11 @@ export default function App() {
   return (
     <div className="app-container">
       <h1>Token Unlock & DLOM Calculator</h1>
-      <TokenForm onCalculate={setResults} initialValues={initialFormValues} />
+  <TokenForm
+    key={resetKey}
+    onCalculate={setResults}
+    initialValues={initialFormValues}
+  />
 
       <div
         className="import-export-buttons"
