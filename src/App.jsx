@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import TokenForm from '../src/components/TokenForm';
 import {
   LineChart,
@@ -13,14 +13,44 @@ import './App.css';
 
 export default function App() {
   const [results, setResults] = useState(null);
+  const [initialFormValues, setInitialFormValues] = useState(null);
   const [showTable, setShowTable] = useState(true);
   const [showCumulative, setShowCumulative] = useState(false);
   const [showInDollars, setShowInDollars] = useState(true);
 
+  // Load from URL on initial mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const storedData = params.get('data');
+    const parsed = storedData ? JSON.parse(decodeURIComponent(storedData)) : null;
+
+    if (parsed) {
+      setResults(parsed);
+      setInitialFormValues(parsed.inputs || null);
+    }
+    setShowTable(params.get('showTable') === 'true');
+    setShowCumulative(params.get('showCumulative') === 'true');
+    setShowInDollars(params.get('showInDollars') !== 'false');
+  }, []);
+
+  // Update URL on state change
+  useEffect(() => {
+    if (!results) return;
+
+    const params = new URLSearchParams();
+    params.set('showTable', showTable);
+    params.set('showCumulative', showCumulative);
+    params.set('showInDollars', showInDollars);
+    params.set('data', encodeURIComponent(JSON.stringify(results)));
+
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState(null, '', newUrl);
+  }, [results, showTable, showCumulative, showInDollars]);
+
   return (
     <div className="app-container">
       <h1>Token Unlock & DLOM Calculator</h1>
-      <TokenForm onCalculate={setResults} />
+      <TokenForm onCalculate={setResults} initialValues={initialFormValues} />
 
       {results && (
         <div className="controls">

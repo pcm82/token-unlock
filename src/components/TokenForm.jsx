@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import ScheduleForm from './TokenForm/ScheduleForm';
 import { generateUnlockEvents, summarizeUnlockEvents } from './TokenForm/helpers';
 import { calculateDLOM } from '../utils/blackScholes';
-// import { fetchDeribitIV } from '../utils/deribit'; // optional if using Deribit IV
 
 const defaultSchedule = {
   token: null,
@@ -22,17 +21,34 @@ const defaultSchedule = {
   cronDow: '*',
 };
 
-export default function TokenForm({ onCalculate }) {
+export default function TokenForm({ onCalculate, initialValues }) {
   const [tokens, setTokens] = useState([]);
   const [schedules, setSchedules] = useState([{ ...defaultSchedule }]);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=20&page=1&sparkline=false')
+    fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false')
       .then(res => res.json())
       .then(setTokens)
       .catch(() => setError('Failed to load token data'));
   }, []);
+
+  useEffect(() => {
+    if (!initialValues) return;
+    const hydrated = initialValues.map(schedule => {
+      const token = schedule.token?.id
+        ? tokens.find(t => t.id === schedule.token.id)
+        : null;
+
+      return {
+        ...defaultSchedule,
+        ...schedule,
+        token: token || null,
+        spotPrice: token ? token.current_price.toFixed(2) : schedule.spotPrice || '',
+      };
+    });
+    setSchedules(hydrated);
+  }, [initialValues, tokens]);
 
   const calculateHistoricalVolatility = (prices) => {
     if (!prices || prices.length < 2) return null;
@@ -70,11 +86,6 @@ export default function TokenForm({ onCalculate }) {
         const res = await fetch(`https://api.coingecko.com/api/v3/coins/${tokenId}/market_chart?vs_currency=usd&days=30`);
         const data = await res.json();
         let vol = calculateHistoricalVolatility(data.prices);
-
-        // Optional: override with Deribit IV
-        // if (['btc', 'eth'].includes(token.symbol.toLowerCase())) {
-        //   vol = await fetchDeribitIV(token.symbol);
-        // }
 
         setSchedules((prev) => {
           const newSchedules = [...prev];
@@ -152,6 +163,7 @@ export default function TokenForm({ onCalculate }) {
       }
 
       const summary = summarizeUnlockEvents(allUnlockEvents, schedules);
+      summary.inputs = schedules; // embed form state for rehydration
       onCalculate(summary);
     } catch (e) {
       setError(e.message || 'Error calculating unlocks');
