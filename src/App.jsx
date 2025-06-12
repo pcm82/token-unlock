@@ -135,6 +135,18 @@ export default function App() {
           />
         </>
       )}
+      <footer style={{ marginTop: '4rem', paddingTop: '2rem', borderTop: '1px solid #ccc', fontSize: '0.9rem', color: '#666', textAlign: 'center' }}>
+      <p style={{ maxWidth: '700px', margin: '0 auto', lineHeight: '1.5' }}>
+        💡 <strong>What does this tool do?</strong><br />
+        This app helps estimate the <strong>current fair value of locked crypto tokens</strong> — tokens that can't be sold or transferred yet due to vesting schedules. 
+        Since locked tokens can’t be traded freely, they’re often worth less than their market price. 
+        That discount is called the <strong>Discount for Lack of Marketability (DLOM)</strong>.<br /><br />
+        By simulating unlock schedules and price behavior, this tool helps investors, founders, and protocols understand how much locked tokens might realistically be worth today.
+      </p>
+      <p style={{ marginTop: '1rem' }}>
+        🔗 <a href="https://github.com/pcm82/token-unlock" target="_blank" rel="noopener noreferrer">View the code on GitHub</a>
+      </p>
+    </footer>
     </div>
   );
 }

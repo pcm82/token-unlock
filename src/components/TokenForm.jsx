@@ -83,7 +83,7 @@ export default function TokenForm({ onCalculate, initialValues }) {
 
     (async () => {
       try {
-        const res = await fetch(`https://api.coingecko.com/api/v3/coins/${tokenId}/market_chart?vs_currency=usd&days=30`);
+        const res = await fetch(`https://api.coingecko.com/api/v3/coins/${tokenId}/market_chart?vs_currency=usd&days=180`);
         const data = await res.json();
         let vol = calculateHistoricalVolatility(data.prices);
 
