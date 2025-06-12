@@ -1,6 +1,6 @@
 # Token Unlocks Tracker
 
-## Website: [https://pcm82.github.io/token-unlock/](pcm82.github.io/token-unlock)
+## Website: [pcm82.github.io/token-unlock](https://pcm82.github.io/token-unlock/)
 
 ## Overview
 
